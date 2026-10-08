@@ -166,7 +166,8 @@ def smart_huawei_login(username, password, req_subdomain="auto", verifycode=None
             huawei_subdomain=final_sub,
             cookies=hw_cookies
         )
-        # Recupera il company_id / lista impianti
+        # Fondamentale: keep_alive() imposta l'header CSRF 'roarand' richiesto da Huawei per station-list!
+        fs_client.keep_alive()
         stations = fs_client.get_station_list()
         return {
             "success": True,
@@ -212,6 +213,7 @@ def get_client_for_creds(creds):
             cookies=hw_cookies
         )
         if c.is_session_active():
+            c.keep_alive()
             clients_cache[key] = c
             return c
 
