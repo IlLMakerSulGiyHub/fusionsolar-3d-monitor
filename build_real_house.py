@@ -287,9 +287,9 @@ add_box("Conduit_WB_Up",   (0.04, 0.04, 0.35), (7.54, -4.05, 1.18), mat_pipe_gre
 add_box("Conduit_Inv_Up",  (0.04, 0.04, 0.20), (7.54, -3.00, 1.12), mat_pipe_grey)
 add_box("Conduit_Bat_Up",  (0.04, 0.04, 0.20), (7.54, -1.75, 1.12), mat_pipe_grey)
 
-# 9e. Punto / Palo Rete Elettrica Enel (sul lato posteriore/destro per il flusso Rete Enel)
-add_cyl("Grid_Pole", 0.10, 6.8, (9.6, -4.5, 3.4), mat_pole_metal)
-add_box("Grid_Crossarm", (0.12, 1.1, 0.10), (9.6, -4.5, 6.4), mat_pole_metal)
+# 9e. Scatola di derivazione / Contatore Rete Elettrica Enel sulla parete destra in alto (come nell'anteprima!)
+add_box("Grid_Box", (0.16, 0.34, 0.46), (7.55, 3.05, 5.15), mat_cornice_grey, bevel=0.02)
+add_cyl("Grid_Conduit", 0.022, 1.35, (7.53, 3.05, 4.30), mat_pipe_grey)
 
 # ---------------------------------------------------------------------------
 # 10. RETRO E LATO SINISTRO (per completezza a 360° quando si ruota il modello)

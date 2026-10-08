@@ -204,7 +204,7 @@
             color: #00e699;
         }
 
-        /* ─── 3D FLOATING BADGES (SCREEN PROJECTED) ─── */
+        /* ─── 3D CALLOUT CARDS & SVG LEADER LINES ─── */
         #labels-container {
             position: absolute;
             top: 0;
@@ -214,30 +214,65 @@
             pointer-events: none;
             z-index: 5;
             overflow: hidden;
+            transition: opacity 0.3s ease;
+        }
+
+        #callout-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
         }
 
         .node-tag {
             position: absolute;
-            transform: translate(-50%, -100%);
-            background: rgba(12, 17, 26, 0.88);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1.5px solid rgba(255, 255, 255, 0.15);
-            border-radius: 14px;
-            padding: 8px 15px;
+            z-index: 2;
+            min-width: 215px;
+            background: rgba(11, 16, 26, 0.88);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1.5px solid rgba(255, 255, 255, 0.16);
+            border-radius: 15px;
+            padding: 10px 16px;
             display: flex;
             align-items: center;
             gap: 12px;
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
-            transition: transform 0.15s ease-out, border-color 0.3s;
+            box-shadow: 0 14px 34px rgba(0, 0, 0, 0.65);
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s, box-shadow 0.3s;
             pointer-events: auto;
             cursor: pointer;
             white-space: nowrap;
         }
 
         .node-tag:hover {
-            transform: translate(-50%, -106%) scale(1.05);
-            border-color: #00e699;
+            transform: scale(1.04);
+            box-shadow: 0 16px 40px rgba(0, 230, 153, 0.22);
+        }
+
+        /* Posizioni ordinate ai lati della casa (zero sovrapposizioni, casa 3D sempre libera) */
+        #tag-pv      { left: 10.5%; top: 14.5%; }
+        #tag-house   { left: 3.2%;  top: 42.5%; }
+
+        #tag-grid    { right: 3.2%; top: 16.5%; }
+        #tag-bat     { right: 3.2%; top: 34.0%; }
+        #tag-inv     { right: 3.2%; top: 51.5%; }
+        #tag-wallbox { right: 3.2%; top: 69.0%; }
+
+        @media (max-width: 900px) {
+            .node-tag {
+                min-width: 160px;
+                padding: 7px 11px;
+                gap: 8px;
+            }
+            #tag-pv      { left: 3%; top: 14%; }
+            #tag-house   { left: 3%; top: 28%; }
+            #tag-grid    { right: 3%; top: 14%; }
+            #tag-bat     { right: 3%; top: 28%; }
+            #tag-inv     { right: 3%; top: 42%; }
+            #tag-wallbox { right: 3%; top: 56%; }
         }
 
         .node-tag .icon-wrap {
@@ -265,7 +300,7 @@
         }
 
         .node-tag .info .val {
-            font-size: 17px;
+            font-size: 18px;
             font-weight: 800;
             color: #ffffff;
             margin-top: 1px;
@@ -277,32 +312,32 @@
             font-weight: 600;
         }
 
-        .node-tag.tag-pv { border-color: rgba(255, 215, 0, 0.5); }
+        .node-tag.tag-pv { border-color: rgba(255, 215, 0, 0.55); }
         .node-tag.tag-pv .icon-wrap { background: rgba(255, 215, 0, 0.18); color: #ffd700; }
         .node-tag.tag-pv .val { color: #ffd700; }
 
-        .node-tag.tag-inverter { border-color: rgba(0, 230, 153, 0.5); }
+        .node-tag.tag-inverter { border-color: rgba(0, 230, 153, 0.55); }
         .node-tag.tag-inverter .icon-wrap { background: rgba(0, 230, 153, 0.18); color: #00e699; }
         .node-tag.tag-inverter .val { color: #00e699; }
 
-        .node-tag.tag-battery { border-color: rgba(0, 210, 255, 0.5); }
+        .node-tag.tag-battery { border-color: rgba(0, 210, 255, 0.55); }
         .node-tag.tag-battery .icon-wrap { background: rgba(0, 210, 255, 0.18); color: #00d2ff; }
         .node-tag.tag-battery .val { color: #00d2ff; }
 
-        .node-tag.tag-house { border-color: rgba(255, 153, 51, 0.5); }
+        .node-tag.tag-house { border-color: rgba(255, 153, 51, 0.55); }
         .node-tag.tag-house .icon-wrap { background: rgba(255, 153, 51, 0.18); color: #ff9933; }
         .node-tag.tag-house .val { color: #ff9933; }
 
-        .node-tag.tag-grid { border-color: rgba(163, 137, 255, 0.5); }
+        .node-tag.tag-grid { border-color: rgba(163, 137, 255, 0.55); }
         .node-tag.tag-grid .icon-wrap { background: rgba(163, 137, 255, 0.18); color: #a389ff; }
-        .node-tag.tag-grid.importing { border-color: rgba(255, 85, 85, 0.7); }
+        .node-tag.tag-grid.importing { border-color: rgba(255, 85, 85, 0.75); }
         .node-tag.tag-grid.importing .icon-wrap { background: rgba(255, 85, 85, 0.22); color: #ff5555; }
         .node-tag.tag-grid.importing .val { color: #ff5555; }
-        .node-tag.tag-grid.exporting { border-color: rgba(0, 230, 153, 0.7); }
+        .node-tag.tag-grid.exporting { border-color: rgba(0, 230, 153, 0.75); }
         .node-tag.tag-grid.exporting .icon-wrap { background: rgba(0, 230, 153, 0.22); color: #00e699; }
         .node-tag.tag-grid.exporting .val { color: #00e699; }
 
-        .node-tag.tag-wallbox { border-color: rgba(230, 90, 255, 0.5); }
+        .node-tag.tag-wallbox { border-color: rgba(230, 90, 255, 0.55); }
         .node-tag.tag-wallbox .icon-wrap { background: rgba(230, 90, 255, 0.18); color: #e65aff; }
         .node-tag.tag-wallbox .val { color: #e65aff; }
 
@@ -323,9 +358,22 @@
     <!-- Canvas 3D Three.js -->
     <div id="webgl-canvas"></div>
 
-    <!-- Contenitore per le etichette proiettate in 3D -->
+    <!-- Contenitore per le etichette Callout + Linee Guida SVG Luminose -->
     <div id="labels-container">
-        <div id="tag-pv" class="node-tag tag-pv" onclick="focusObject(coords.pv)">
+        <svg id="callout-svg" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <filter id="callout-glow" x="-30%" y="-30%" width="160%" height="160%">
+                    <feGaussianBlur stdDeviation="2.5" result="blur" />
+                    <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                </filter>
+            </defs>
+            <g id="callout-lines-group" filter="url(#callout-glow)"></g>
+        </svg>
+
+        <div id="tag-pv" class="node-tag tag-pv" data-side="left" data-color="#ffd700" onclick="focusObject(coords.pv)">
             <div class="icon-wrap">☀️</div>
             <div class="info">
                 <span class="label">Pannelli Solari</span>
@@ -334,25 +382,7 @@
             </div>
         </div>
 
-        <div id="tag-inv" class="node-tag tag-inverter" onclick="focusObject(coords.inverter)">
-            <div class="icon-wrap">⚡</div>
-            <div class="info">
-                <span class="label">Inverter SUN2000</span>
-                <span class="val" id="val-inv">Online</span>
-                <span class="sub" style="color: #00e699;">In funzione</span>
-            </div>
-        </div>
-
-        <div id="tag-bat" class="node-tag tag-battery" onclick="focusObject(coords.battery)">
-            <div class="icon-wrap">🔋</div>
-            <div class="info">
-                <span class="label">Batteria LUNA2000</span>
-                <span class="val" id="val-bat">0.00 kW</span>
-                <span class="sub" id="sub-bat" style="color: #00d2ff;">100% SOC</span>
-            </div>
-        </div>
-
-        <div id="tag-house" class="node-tag tag-house" onclick="focusObject(coords.house)">
+        <div id="tag-house" class="node-tag tag-house" data-side="left" data-color="#ff9933" onclick="focusObject(coords.house)">
             <div class="icon-wrap">🏠</div>
             <div class="info">
                 <span class="label">Carico Casa</span>
@@ -361,7 +391,7 @@
             </div>
         </div>
 
-        <div id="tag-grid" class="node-tag tag-grid" onclick="focusObject(coords.grid)">
+        <div id="tag-grid" class="node-tag tag-grid" data-side="right" data-color="#a389ff" onclick="focusObject(coords.grid)">
             <div class="icon-wrap">🔌</div>
             <div class="info">
                 <span class="label">Rete Elettrica Enel</span>
@@ -370,7 +400,25 @@
             </div>
         </div>
 
-        <div id="tag-wallbox" class="node-tag tag-wallbox" onclick="focusObject(coords.wallbox)">
+        <div id="tag-bat" class="node-tag tag-battery" data-side="right" data-color="#00d2ff" onclick="focusObject(coords.battery)">
+            <div class="icon-wrap">🔋</div>
+            <div class="info">
+                <span class="label">Batteria LUNA2000</span>
+                <span class="val" id="val-bat">0.00 kW</span>
+                <span class="sub" id="sub-bat" style="color: #00d2ff;">100% SOC</span>
+            </div>
+        </div>
+
+        <div id="tag-inv" class="node-tag tag-inverter" data-side="right" data-color="#00e699" onclick="focusObject(coords.inverter)">
+            <div class="icon-wrap">⚡</div>
+            <div class="info">
+                <span class="label">Inverter SUN2000</span>
+                <span class="val" id="val-inv">Online</span>
+                <span class="sub" style="color: #00e699;">In funzione</span>
+            </div>
+        </div>
+
+        <div id="tag-wallbox" class="node-tag tag-wallbox" data-side="right" data-color="#e65aff" onclick="focusObject(coords.wallbox)">
             <div class="icon-wrap">🚗</div>
             <div class="info">
                 <span class="label">Wallbox Ricarica Auto</span>
@@ -429,8 +477,9 @@
                     <button class="cam-btn active" onclick="setCameraView('iso', this)">📐 Panoramica</button>
                     <button class="cam-btn" onclick="setCameraView('roof', this)">☀️ Tetto & Solare</button>
                     <button class="cam-btn" onclick="setCameraView('battery', this)">🔋 Inverter & Batteria</button>
-                    <button class="cam-btn" onclick="setCameraView('car', this)">🚗 Wallbox & Auto</button>
+                    <button class="cam-btn" onclick="setCameraView('car', this)">🚗 Wallbox & Garage</button>
                     <button class="cam-btn" id="btn-autorotate" onclick="toggleAutoRotate(this)">🔄 Auto-Giro</button>
+                    <button class="cam-btn active" id="btn-labels" onclick="toggleLabels(this)">🏷️ Etichette</button>
                 </div>
 
                 <div class="lighting-controls">
@@ -558,8 +607,8 @@
                 new THREE.Vector3(-0.50, 3.20, 5.20)
             ]),
             grid_to_inv: new THREE.CatmullRomCurve3([
-                new THREE.Vector3(9.60, 6.40, 4.50),
-                new THREE.Vector3(9.60, 2.20, 4.50),
+                new THREE.Vector3(7.55, 5.15, -3.05),
+                new THREE.Vector3(7.55, 1.60, -3.05),
                 new THREE.Vector3(7.60, 1.60, 3.00)
             ]),
             inv_to_wallbox: new THREE.CatmullRomCurve3([
@@ -638,44 +687,119 @@
         };
 
         /* ═══════════════════════════════════════════════════════════════════
-           5. 3D OBJECT ANCHORS FOR SCREEN-PROJECTED BADGES
+           5. 3D OBJECT ANCHORS & SVG CALLOUT LEADER LINES
            ═══════════════════════════════════════════════════════════════════ */
         const coords = {
-            pv: new THREE.Vector3(-0.5, 9.5, 2.2),
-            inverter: new THREE.Vector3(7.9, 2.3, 3.0),
-            battery: new THREE.Vector3(7.9, 2.8, 1.6),
-            house: new THREE.Vector3(-2.5, 4.5, 6.2),
-            grid: new THREE.Vector3(9.8, 6.8, 4.5),
-            wallbox: new THREE.Vector3(7.9, 1.5, 4.4)
+            pv: new THREE.Vector3(-1.2, 8.75, 2.1),
+            house: new THREE.Vector3(-3.3, 4.75, 5.05),
+            grid: new THREE.Vector3(7.60, 5.15, -3.05),
+            battery: new THREE.Vector3(7.70, 2.15, 1.75),
+            inverter: new THREE.Vector3(7.70, 1.60, 3.00),
+            wallbox: new THREE.Vector3(7.70, 1.50, 4.05)
         };
 
         const tags = {
             pv: { el: document.getElementById('tag-pv'), pos: coords.pv },
-            inverter: { el: document.getElementById('tag-inv'), pos: coords.inverter },
-            battery: { el: document.getElementById('tag-bat'), pos: coords.battery },
             house: { el: document.getElementById('tag-house'), pos: coords.house },
             grid: { el: document.getElementById('tag-grid'), pos: coords.grid },
+            battery: { el: document.getElementById('tag-bat'), pos: coords.battery },
+            inverter: { el: document.getElementById('tag-inv'), pos: coords.inverter },
             wallbox: { el: document.getElementById('tag-wallbox'), pos: coords.wallbox }
         };
 
+        const calloutGroup = document.getElementById('callout-lines-group');
+        const svgNS = "http://www.w3.org/2000/svg";
+        const calloutElements = {};
+
+        for (const key in tags) {
+            const color = tags[key].el.getAttribute('data-color') || '#00e699';
+
+            const poly = document.createElementNS(svgNS, 'polyline');
+            poly.setAttribute('fill', 'none');
+            poly.setAttribute('stroke', color);
+            poly.setAttribute('stroke-width', '1.8');
+            poly.setAttribute('stroke-linecap', 'round');
+            poly.setAttribute('stroke-linejoin', 'round');
+            poly.setAttribute('opacity', '0.85');
+
+            const dotCard = document.createElementNS(svgNS, 'circle');
+            dotCard.setAttribute('r', '4');
+            dotCard.setAttribute('fill', '#ffffff');
+            dotCard.setAttribute('stroke', color);
+            dotCard.setAttribute('stroke-width', '2');
+
+            const dotTarget = document.createElementNS(svgNS, 'circle');
+            dotTarget.setAttribute('r', '4.5');
+            dotTarget.setAttribute('fill', '#ffffff');
+            dotTarget.setAttribute('stroke', color);
+            dotTarget.setAttribute('stroke-width', '2.5');
+
+            calloutGroup.appendChild(poly);
+            calloutGroup.appendChild(dotCard);
+            calloutGroup.appendChild(dotTarget);
+
+            calloutElements[key] = { poly, dotCard, dotTarget };
+        }
+
+        let labelsVisible = true;
+        function toggleLabels(btn) {
+            labelsVisible = !labelsVisible;
+            const containerEl = document.getElementById('labels-container');
+            containerEl.style.opacity = labelsVisible ? '1' : '0';
+            containerEl.style.pointerEvents = labelsVisible ? 'none' : 'none';
+            document.querySelectorAll('.node-tag').forEach(el => {
+                el.style.pointerEvents = labelsVisible ? 'auto' : 'none';
+            });
+            if (btn) btn.classList.toggle('active', labelsVisible);
+        }
+
         function updateProjectedLabels() {
+            if (!labelsVisible) return;
             const w = window.innerWidth;
             const h = window.innerHeight;
             const tempV = new THREE.Vector3();
 
             for (const key in tags) {
                 const item = tags[key];
+                const svgEl = calloutElements[key];
                 tempV.copy(item.pos).project(camera);
 
                 if (tempV.z > 1.0) {
-                    item.el.style.display = 'none';
+                    svgEl.poly.style.display = 'none';
+                    svgEl.dotCard.style.display = 'none';
+                    svgEl.dotTarget.style.display = 'none';
                     continue;
                 }
-                item.el.style.display = 'flex';
-                const x = (tempV.x * 0.5 + 0.5) * w;
-                const y = (-(tempV.y * 0.5) + 0.5) * h;
-                item.el.style.left = `${x}px`;
-                item.el.style.top = `${y}px`;
+
+                svgEl.poly.style.display = 'block';
+                svgEl.dotCard.style.display = 'block';
+                svgEl.dotTarget.style.display = 'block';
+
+                // Punto 3D sul modello
+                const tx = (tempV.x * 0.5 + 0.5) * w;
+                const ty = (-(tempV.y * 0.5) + 0.5) * h;
+
+                // Punto di aggancio sul bordo della card
+                const rect = item.el.getBoundingClientRect();
+                const side = item.el.getAttribute('data-side');
+                const cx = (side === 'left') ? rect.right : rect.left;
+                const cy = rect.top + rect.height * 0.5;
+
+                // Costruzione gomito elegante (elbow leader line) come nell'anteprima
+                let pointsStr = '';
+                if (side === 'left') {
+                    const elbowX = cx + Math.min(48, Math.max(18, (tx - cx) * 0.35));
+                    pointsStr = `${cx.toFixed(1)},${cy.toFixed(1)} ${elbowX.toFixed(1)},${cy.toFixed(1)} ${tx.toFixed(1)},${ty.toFixed(1)}`;
+                } else {
+                    const elbowX = cx - Math.min(52, Math.max(20, (cx - tx) * 0.35));
+                    pointsStr = `${cx.toFixed(1)},${cy.toFixed(1)} ${elbowX.toFixed(1)},${cy.toFixed(1)} ${elbowX.toFixed(1)},${ty.toFixed(1)} ${tx.toFixed(1)},${ty.toFixed(1)}`;
+                }
+
+                svgEl.poly.setAttribute('points', pointsStr);
+                svgEl.dotCard.setAttribute('cx', cx.toFixed(1));
+                svgEl.dotCard.setAttribute('cy', cy.toFixed(1));
+                svgEl.dotTarget.setAttribute('cx', tx.toFixed(1));
+                svgEl.dotTarget.setAttribute('cy', ty.toFixed(1));
             }
         }
 
