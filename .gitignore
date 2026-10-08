@@ -1,0 +1,15 @@
+# Credenziali personali (MAI caricare su GitHub!)
+.env
+saved_account.json
+
+# Python cache & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+
+# File di backup temporanei di Blender
+*.blend1
+*.blend2

@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="it" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoSmart Energy Control Hub</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#0b0f19',
+                        cardBg: '#131c2e',
+                        cardBorder: '#1e293b',
+                        solarYellow: '#fbbf24',
+                        gridBlue: '#38bdf8',
+                        batteryGreen: '#34d399',
+                        homeOrange: '#fb923c',
+                        evPurple: '#c084fc'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Three.js & GLTFLoader for true Blender 3D House Visualization -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0f19;
+            color: #f8fafc;
+        }
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b0f19;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+        /* Glow effects */
+        .glow-solar { box-shadow: 0 0 25px rgba(251, 191, 36, 0.2); }
+        .glow-battery { box-shadow: 0 0 25px rgba(52, 211, 153, 0.2); }
+        .glow-ev { box-shadow: 0 0 25px rgba(192, 132, 252, 0.2); }
+        .glow-grid { box-shadow: 0 0 25px rgba(56, 189, 248, 0.2); }
+
+        /* Isometric 3D House Container Styles */
+        .house-3d-scene {
+            perspective: 1000px;
+        }
+        .isometric-card {
+            transform-style: preserve-3d;
+            transition: transform 0.3s ease;
+        }
+        
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.05); }
+        }
+        .pulse-animation {
+            animation: pulse-slow 3s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-amber-500 selection:text-black">
+
+    <!-- Top Header -->
+    <header class="bg-cardBg/80 backdrop-blur-md border-b border-cardBorder sticky top-0 z-50 px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center shadow-lg shadow-amber-500/30 text-slate-950 font-bold text-xl">
+                <i class="fa-solid fa-bolt"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                    <span id="plant-name-header">EcoSmart Hub</span> <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">FusionSolar Live</span>
+                </h1>
+                <p class="text-xs text-slate-400">Controllo Energetico Residenziale & Wallbox</p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-4">
+            <!-- Switcher to 3D Fullscreen view -->
+            <a href="/3d" class="flex items-center gap-2 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 hover:border-emerald-400 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-emerald-300 hover:text-white transition shadow-lg shadow-emerald-500/10">
+                <i class="fa-solid fa-cube text-emerald-400"></i>
+                <span>Vista 3D Pura</span>
+            </a>
+
+            <!-- Weather Widget -->
+            <div class="hidden sm:flex items-center space-x-3 bg-slate-800/60 border border-slate-700/50 px-3 py-1.5 rounded-xl text-xs">
+                <i class="fa-solid fa-sun text-amber-400 text-base animate-spin" style="animation-duration: 20s;"></i>
+                <div>
+                    <span class="font-semibold text-white">24°C, Soleggiato</span>
+                    <span class="block text-[10px] text-slate-400">Irraggiamento: 880 W/m²</span>
+                </div>
+            </div>
+
+            <!-- Time and Date -->
+            <div class="hidden md:block text-right">
+                <div id="live-clock" class="text-sm font-semibold text-slate-200">12:00:00</div>
+                <div id="live-date" class="text-[10px] text-slate-400">Sabato, 26 Settembre 2026</div>
+            </div>
+
+            <!-- Quick Action Alert trigger -->
+            <button onclick="triggerNotification('Impostazioni salvate con successo!', 'success')" class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition relative">
+                <i class="fa-regular fa-bell"></i>
+                <span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+            </button>
+
+            <!-- Switch Account / Logout Button -->
+            <a href="/logout" title="Esci o accedi con un altro account FusionSolar" class="flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 hover:border-rose-400 px-3.5 py-2 rounded-xl text-xs font-semibold text-rose-300 hover:text-white transition">
+                <i class="fa-solid fa-right-from-bracket text-rose-400"></i>
+                <span id="active-user-badge">Cambia Account</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left Column: 3D House Visualizer & Real-time Energy Flows (7 columns) -->
+        <div class="lg:col-span-7 flex flex-col space-y-6">
+            
+            <!-- 3D Interactive House Visualization Card -->
+            <div class="bg-cardBg border border-cardBorder rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between shadow-xl">
+                <!-- Decorative background radial gradient -->
+                <div class="absolute -top-24 -right-24 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute -bottom-24 -left-24 w-96 h-96 bg-sky-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+                <div class="flex items-center justify-between mb-4 z-10">
+                    <div>
+                        <h2 class="text-base font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-house-chimney text-amber-400"></i> Modello 3D Interattivo Impianto
+                        </h2>
+                        <p class="text-xs text-slate-400">Trascina per ruotare la visuale 3D • Clicca sui componenti</p>
+                    </div>
+                    <div class="flex items-center space-x-2 bg-slate-800/80 border border-slate-700/60 p-1 rounded-xl text-xs">
+                        <button onclick="resetCameraView()" class="px-3 py-1 rounded-lg bg-amber-500 text-slate-950 font-semibold transition hover:bg-amber-400">Centra Vista</button>
+                    </div>
+                </div>
+
+                <!-- True 3D Three.js Canvas Container -->
+                <div id="canvas-3d-container" class="relative w-full h-72 sm:h-80 bg-slate-950/80 rounded-xl border border-slate-800/80 overflow-hidden z-10 cursor-grab active:cursor-grabbing">
+                    <!-- Loading overlay before 3D initializes -->
+                    <div id="canvas-loader" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 z-20 transition-opacity duration-500">
+                        <i class="fa-solid fa-spinner fa-spin text-amber-400 text-2xl mb-2"></i>
+                        <span class="text-xs text-slate-400 font-medium">Caricamento scena 3D in corso...</span>
+                    </div>
+
+                    <!-- Floating Sun / Power Photon Indicator Badge -->
+                    <div class="absolute top-4 left-4 flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full text-amber-400 text-xs font-medium backdrop-blur pointer-events-none">
+                        <i class="fa-solid fa-sun text-amber-400"></i> <span id="sun-power-badge">4.28 kW Solare</span>
+                    </div>
+
+                    <!-- Controls hint -->
+                    <div class="absolute bottom-3 right-3 text-[10px] text-slate-400 bg-slate-900/80 px-2.5 py-1 rounded-lg backdrop-blur pointer-events-none border border-slate-800">
+                        <i class="fa-solid fa-rotate"></i> Trascina per ruotare
+                    </div>
+                </div>
+
+                <!-- Component Inspector / Drawer (Dynamic content based on selection) -->
+                <div id="inspector-panel" class="mt-4 bg-slate-900/80 border border-slate-800/80 rounded-xl p-4 transition-all">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div id="inspector-icon" class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                                <i class="fa-solid fa-solar-panel text-lg"></i>
+                            </div>
+                            <div>
+                                <h3 id="inspector-title" class="text-sm font-bold text-white">Pannelli Fotovoltaici (kW)</h3>
+                                <p id="inspector-subtitle" class="text-xs text-slate-400">Generazione attuale ottimizzata in base all'inclinazione del tetto</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div id="inspector-value" class="text-lg font-bold text-amber-400">4,28 kW</div>
+                            <div id="inspector-subvalue" class="text-[10px] text-emerald-400">+12% rispetto a ieri</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Real-time Energy Meters Cards (4 Cards Grid) -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <!-- PV Card -->
+                <div onclick="selectComponent('solar')" class="bg-cardBg border border-cardBorder hover:border-amber-500/50 cursor-pointer rounded-2xl p-4 transition relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-bl-full pointer-events-none"></div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs text-slate-400 font-medium">Solare PV</span>
+                        <div class="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                            <i class="fa-solid fa-solar-panel"></i>
+                        </div>
+                    </div>
+                    <div class="text-xl font-bold text-white mb-1" id="val-pv">4.28 kW</div>
+                    <div class="flex items-center text-[10px] text-emerald-400">
+                        <i class="fa-solid fa-arrow-trend-up mr-1"></i> Picco oggi: 5.6 kW
+                    </div>
+                </div>
+
+                <!-- Home Consumption Card -->
+                <div onclick="selectComponent('home')" class="bg-cardBg border border-cardBorder hover:border-orange-500/50 cursor-pointer rounded-2xl p-4 transition relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-orange-500/5 rounded-bl-full pointer-events-none"></div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs text-slate-400 font-medium">Casa</span>
+                        <div class="w-8 h-8 rounded-xl bg-orange-500/10 text-orange-400 flex items-center justify-center">
+                            <i class="fa-solid fa-house"></i>
+                        </div>
+                    </div>
+                    <div class="text-xl font-bold text-white mb-1" id="val-home">1.45 kW</div>
+                    <div class="flex items-center text-[10px] text-slate-400">
+                        Carichi standard attivi
+                    </div>
+                </div>
+
+                <!-- Battery Card -->
+                <div onclick="selectComponent('battery')" class="bg-cardBg border border-cardBorder hover:border-emerald-500/50 cursor-pointer rounded-2xl p-4 transition relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-bl-full pointer-events-none"></div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs text-slate-400 font-medium">Accumulo</span>
+                        <div class="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                            <i class="fa-solid fa-battery-three-quarters"></i>
+                        </div>
+                    </div>
+                    <div class="text-xl font-bold text-white mb-1" id="val-battery">78%</div>
+                    <div class="flex items-center text-[10px] text-emerald-400" id="val-battery-status">
+                        <i class="fa-solid fa-bolt mr-1"></i> In carica (+2.1 kW)
+                    </div>
+                </div>
+
+                <!-- Grid Card -->
+                <div onclick="selectComponent('grid')" class="bg-cardBg border border-cardBorder hover:border-sky-500/50 cursor-pointer rounded-2xl p-4 transition relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-sky-500/5 rounded-bl-full pointer-events-none"></div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs text-slate-400 font-medium">Rete Enel</span>
+                        <div class="w-8 h-8 rounded-xl bg-sky-500/10 text-sky-400 flex items-center justify-center">
+                            <i class="fa-solid fa-tower-broadcast"></i>
+                        </div>
+                    </div>
+                    <div class="text-xl font-bold text-sky-400 mb-1" id="val-grid">-0.73 kW</div>
+                    <div class="flex items-center text-[10px] text-sky-400" id="val-grid-sub">
+                        <i class="fa-solid fa-arrow-up-right-dots mr-1"></i> Immissione in rete
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Column: Wallbox Control & Analytics Charts (5 columns) -->
+        <div class="lg:col-span-5 flex flex-col space-y-6">
+
+            <!-- Wallbox Control Card -->
+            <div class="bg-cardBg border border-cardBorder rounded-2xl p-5 shadow-xl relative overflow-hidden">
+                <div class="absolute -top-20 -right-20 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                            <i class="fa-solid fa-charging-station text-lg"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-white">Wallbox EV (Tesla Model Y)</h3>
+                            <p class="text-xs text-slate-400">Stato: <span id="wb-status-text" class="text-emerald-400 font-medium">Connesso & In Carica</span></p>
+                        </div>
+                    </div>
+                    <!-- Toggle State indicator badge -->
+                    <span id="wb-badge" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/30">
+                        7.4 kW (Max)
+                    </span>
+                </div>
+
+                <!-- Car Battery Progress -->
+                <div class="bg-slate-900/80 border border-slate-800/80 rounded-xl p-4 mb-4">
+                    <div class="flex justify-between text-xs mb-2">
+                        <span class="text-slate-300 font-medium flex items-center gap-1.5"><i class="fa-solid fa-car text-purple-400"></i> Livello Batteria Auto</span>
+                        <span class="text-purple-400 font-bold" id="car-soc-text">84% (415 km)</span>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                        <div id="car-soc-bar" class="bg-gradient-to-r from-purple-500 to-indigo-400 h-2.5 rounded-full transition-all duration-500" style="width: 84%"></div>
+                    </div>
+                    <div class="flex justify-between items-center mt-3 text-[11px] text-slate-400">
+                        <span>Tempo al 100%: ~45 min</span>
+                        <span>Energia erogata: 32.4 kWh</span>
+                    </div>
+                </div>
+
+                <!-- Charging Power Control Slider & Buttons -->
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-300">Potenza di Ricarica Impostata</span>
+                            <span id="current-power-val" class="font-bold text-white">16 A (3.7 kW)</span>
+                        </div>
+                        <input type="range" id="charging-power-slider" min="6" max="32" value="16" step="2" oninput="updateChargingPower(this.value)" class="w-full accent-purple-500 bg-slate-800 rounded-lg cursor-pointer h-2">
+                        <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+                            <span>6A (1.4 kW - Eco)</span>
+                            <span>16A (3.7 kW)</span>
+                            <span>32A (7.4 kW - Fast)</span>
+                        </div>
+                    </div>
+
+                    <!-- Charging Mode Selector -->
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="setChargingMode('solar')" id="mode-solar" class="py-2 px-3 rounded-xl border border-purple-500 bg-purple-500/10 text-purple-300 text-xs font-semibold transition flex flex-col items-center justify-center gap-1">
+                            <i class="fa-solid fa-sun"></i> Solo Solare
+                        </button>
+                        <button onclick="setChargingMode('smart')" id="mode-smart" class="py-2 px-3 rounded-xl border border-slate-800 bg-slate-800/50 hover:bg-slate-800 text-slate-400 text-xs font-medium transition flex flex-col items-center justify-center gap-1">
+                            <i class="fa-solid fa-bolt"></i> Smart Boost
+                        </button>
+                        <button onclick="setChargingMode('eco')" id="mode-eco" class="py-2 px-3 rounded-xl border border-slate-800 bg-slate-800/50 hover:bg-slate-800 text-slate-400 text-xs font-medium transition flex flex-col items-center justify-center gap-1">
+                            <i class="fa-solid fa-leaf"></i> Eco Schedule
+                        </button>
+                    </div>
+
+                    <!-- Quick Wallbox Power Switch -->
+                    <div class="pt-2 flex items-center justify-between border-t border-slate-800">
+                        <span class="text-xs text-slate-300">Interruttore Generale Wallbox</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="wallbox-toggle" checked onchange="toggleWallbox(this)" class="sr-only peer">
+                            <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Energy Production & Consumption Chart Card -->
+            <div class="bg-cardBg border border-cardBorder rounded-2xl p-5 shadow-xl flex-1 flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-chart-line text-amber-400"></i> Flussi Energetici (Oggi)
+                        </h3>
+                        <p class="text-[11px] text-slate-400">Andamento orario in kW</p>
+                    </div>
+                    <div class="flex items-center space-x-2 text-xs">
+                        <button onclick="switchChartTab('day')" id="chart-day-btn" class="px-2.5 py-1 rounded-lg bg-slate-800 text-white font-medium">Oggi</button>
+                        <button onclick="switchChartTab('month')" id="chart-month-btn" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white">Mese</button>
+                    </div>
+                </div>
+
+                <!-- Canvas Chart.js container -->
+                <div class="relative w-full h-56">
+                    <canvas id="energyChart"></canvas>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Custom Notification Toast -->
+    <div id="toast-notification" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 border border-slate-700 shadow-2xl rounded-2xl p-4 flex items-center space-x-3 text-white">
+        <div id="toast-icon" class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+            <i class="fa-solid fa-check"></i>
+        </div>
+        <div>
+            <div id="toast-title" class="text-xs font-bold">Notifica di Sistema</div>
+            <div id="toast-desc" class="text-[11px] text-slate-400">Operazione completata con successo.</div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-cardBg border-t border-cardBorder py-4 px-6 text-center text-xs text-slate-500">
+        <p>&copy; 2026 EcoSmart Energy Hub v3.4. Tutti i diritti riservati. Monitoraggio inverter solare in tempo reale.</p>
+    </footer>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // --- Live Clock & Date ---
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('live-clock').innerText = now.toLocaleTimeString('it-IT');
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('live-date').innerText = now.toLocaleDateString('it-IT', options);
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // --- Interactive Component Inspector State ---
+        const componentData = {
+            solar: {
+                title: "Pannelli Fotovoltaici (Tetto)",
+                subtitle: "Generazione fotovoltaica attuale ad alta efficienza monocristallina",
+                value: "4.28 kW",
+                subvalue: "+12% rispetto a ieri alla stessa ora",
+                icon: "fa-solar-panel",
+                color: "text-amber-400",
+                bg: "bg-amber-500/10 border-amber-500/30"
+            },
+            home: {
+                title: "Consumi Domestici",
+                subtitle: "Carichi attivi: Pompa di calore, Elettrodomestici, Illuminazione",
+                value: "1.45 kW",
+                subvalue: "Ottimizzato (Autoconsumo 82%)",
+                icon: "fa-house",
+                color: "text-orange-400",
+                bg: "bg-orange-500/10 border-orange-500/30"
+            },
+            battery: {
+                title: "Batteria di Accumulo (Tesla Powerwall)",
+                subtitle: "Stato di carica (SoC) e flussi energetici in tempo reale",
+                value: "78% (10.2 kWh)",
+                subvalue: "In carica a +2.1 kW",
+                icon: "fa-battery-three-quarters",
+                color: "text-emerald-400",
+                bg: "bg-emerald-500/10 border-emerald-500/30"
+            },
+            grid: {
+                title: "Scambio con la Rete Elettrica",
+                subtitle: "Flusso energetico bidirezionale con il distributore locale",
+                value: "-0.73 kW",
+                subvalue: "Immissione in rete (Incentivo attivo)",
+                icon: "fa-tower-broadcast",
+                color: "text-sky-400",
+                bg: "bg-sky-500/10 border-sky-500/30"
+            },
+            ev: {
+                title: "Wallbox & Colonnina di Ricarica EV",
+                subtitle: "Ricarica veicolo elettrico connesso in modalità intelligente",
+                value: "3.7 kW (16A)",
+                subvalue: "Stato: Ricarica solare prioritaria",
+                icon: "fa-charging-station",
+                color: "text-purple-400",
+                bg: "bg-purple-500/10 border-purple-500/30"
+            }
+        };
+
+        let currentSelectedComponent = 'solar';
+
+        function selectComponent(type, notify = true) {
+            currentSelectedComponent = type;
+            const data = componentData[type];
+            if (!data) return;
+
+            document.getElementById('inspector-title').innerText = data.title;
+            document.getElementById('inspector-subtitle').innerText = data.subtitle;
+            document.getElementById('inspector-value').innerText = data.value;
+            document.getElementById('inspector-subvalue').innerText = data.subvalue;
+            
+            const iconContainer = document.getElementById('inspector-icon');
+            iconContainer.className = `w-10 h-10 rounded-xl border flex items-center justify-center ${data.color} ${data.bg}`;
+            iconContainer.innerHTML = `<i class="fa-solid ${data.icon} text-lg"></i>`;
+
+            if (notify) {
+                triggerNotification(`Selezionato componente: ${data.title}`, 'info');
+            }
+        }
+
+        async function fetchLiveData() {
+            try {
+                const res = await fetch('/api/flow');
+                const data = await res.json();
+                if (data.need_login || res.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
+                if (data.error) return;
+
+                // 1. Header & Plant name & Active Account
+                if (data.station && data.station.name) {
+                    const headerEl = document.getElementById('plant-name-header');
+                    if (headerEl) headerEl.textContent = data.station.name;
+                }
+                if (data.account && data.account.username) {
+                    const badgeEl = document.getElementById('active-user-badge');
+                    if (badgeEl) badgeEl.textContent = `Esci (${data.account.username})`;
+                }
+
+                // 2. Solar PV
+                const pvPower = data.pv ? data.pv.power : 0;
+                const pvActive = data.pv && data.pv.active;
+                document.getElementById('val-pv').innerText = pvPower.toFixed(2) + ' kW';
+                document.getElementById('sun-power-badge').innerText = pvPower.toFixed(2) + ' kW Solare';
+                componentData.solar.value = pvPower.toFixed(2) + ' kW';
+                componentData.solar.subtitle = pvActive ? "Generazione fotovoltaica in tempo reale dai pannelli sul tetto" : "Produzione inattiva (ore notturne o scarso irraggiamento)";
+                componentData.solar.subvalue = pvActive ? "Generazione attiva in corso" : "Impianto in standby";
+
+                // 3. Home Consumption
+                const homePower = data.house ? data.house.power : 0;
+                document.getElementById('val-home').innerText = homePower.toFixed(2) + ' kW';
+                componentData.home.value = homePower.toFixed(2) + ' kW';
+
+                // 4. Battery Storage
+                const batSoc = data.battery ? data.battery.soc : 100;
+                const batPower = data.battery ? data.battery.power : 0;
+                document.getElementById('val-battery').innerText = Math.round(batSoc) + '%';
+                const batStatusEl = document.getElementById('val-battery-status');
+                if (data.battery && data.battery.charging) {
+                    batStatusEl.innerHTML = `<i class="fa-solid fa-bolt mr-1"></i> In carica (+${batPower.toFixed(2)} kW)`;
+                    batStatusEl.className = "flex items-center text-[10px] text-emerald-400";
+                    componentData.battery.subvalue = `In carica a +${batPower.toFixed(2)} kW`;
+                } else if (data.battery && data.battery.discharging) {
+                    batStatusEl.innerHTML = `<i class="fa-solid fa-arrow-down mr-1"></i> In scarica (-${batPower.toFixed(2)} kW)`;
+                    batStatusEl.className = "flex items-center text-[10px] text-sky-400";
+                    componentData.battery.subvalue = `In scarica a -${batPower.toFixed(2)} kW`;
+                } else {
+                    batStatusEl.innerHTML = `<i class="fa-solid fa-check mr-1"></i> Standby (Piena carica)`;
+                    batStatusEl.className = "flex items-center text-[10px] text-slate-400";
+                    componentData.battery.subvalue = `In standby al ${Math.round(batSoc)}% (0.00 kW)`;
+                }
+                componentData.battery.value = `${Math.round(batSoc)}% (${(batSoc * 0.05).toFixed(1)} kWh)`;
+
+                // 5. Grid Exchange
+                const gridPower = data.grid ? data.grid.power : 0;
+                const gridValEl = document.getElementById('val-grid');
+                const gridSubEl = document.getElementById('val-grid-sub');
+                if (data.grid && data.grid.exporting) {
+                    gridValEl.innerText = '+' + gridPower.toFixed(2) + ' kW';
+                    gridValEl.className = "text-xl font-bold text-emerald-400 mb-1";
+                    if (gridSubEl) gridSubEl.innerHTML = `<i class="fa-solid fa-arrow-up-right-dots mr-1"></i> Immissione in rete (Export)`;
+                    componentData.grid.value = '+' + gridPower.toFixed(2) + ' kW';
+                    componentData.grid.subvalue = 'Cessione energia alla rete elettrica';
+                } else if (data.grid && data.grid.importing) {
+                    gridValEl.innerText = '-' + gridPower.toFixed(2) + ' kW';
+                    gridValEl.className = "text-xl font-bold text-rose-400 mb-1";
+                    if (gridSubEl) gridSubEl.innerHTML = `<i class="fa-solid fa-arrow-down mr-1"></i> Prelievo da rete (Import)`;
+                    componentData.grid.value = '-' + gridPower.toFixed(2) + ' kW';
+                    componentData.grid.subvalue = 'Prelievo dalla rete elettrica Enel';
+                } else {
+                    gridValEl.innerText = '0.00 kW';
+                    gridValEl.className = "text-xl font-bold text-slate-400 mb-1";
+                    if (gridSubEl) gridSubEl.innerHTML = `Rete in bilancio`;
+                    componentData.grid.value = '0.00 kW';
+                    componentData.grid.subvalue = 'Flusso rete bilanciato';
+                }
+
+                // 6. Wallbox
+                const wbPower = data.wallbox ? data.wallbox.power : 0;
+                if (wbPower > 0) {
+                    document.getElementById('wb-status-text').innerText = `In Carica (${wbPower.toFixed(2)} kW)`;
+                    document.getElementById('wb-status-text').className = "text-emerald-400 font-medium";
+                    document.getElementById('wb-badge').innerText = `${wbPower.toFixed(1)} kW`;
+                    componentData.ev.value = `${wbPower.toFixed(2)} kW`;
+                } else {
+                    document.getElementById('wb-status-text').innerText = "Standby / Pronta";
+                    document.getElementById('wb-status-text').className = "text-purple-400 font-medium";
+                    document.getElementById('wb-badge').innerText = "Standby";
+                    componentData.ev.value = "0.00 kW";
+                }
+
+                // Refresh inspector
+                selectComponent(currentSelectedComponent, false);
+
+                // 7. 3D Scene live updates
+                if (typeof solarPanelMesh !== 'undefined' && solarPanelMesh && solarPanelMesh.material) {
+                    solarPanelMesh.material.emissive = new THREE.Color(0x0055ff);
+                    solarPanelMesh.material.emissiveIntensity = pvActive ? 0.8 : 0.05;
+                }
+                if (typeof solarPanelMesh2 !== 'undefined' && solarPanelMesh2 && solarPanelMesh2.material) {
+                    solarPanelMesh2.material.emissive = new THREE.Color(0x0055ff);
+                    solarPanelMesh2.material.emissiveIntensity = pvActive ? 0.8 : 0.05;
+                }
+                if (typeof batteryMesh !== 'undefined' && batteryMesh && batteryMesh.material) {
+                    batteryMesh.material.color.setHex(data.battery && data.battery.charging ? 0x00e699 : (data.battery && data.battery.discharging ? 0x00d2ff : 0x34d399));
+                }
+                if (typeof particlesMesh !== 'undefined' && particlesMesh && particlesMesh.material) {
+                    if (pvActive) {
+                        particlesMesh.material.color.setHex(0xfbbf24);
+                    } else if (data.grid && data.grid.importing) {
+                        particlesMesh.material.color.setHex(0xf43f5e);
+                    } else {
+                        particlesMesh.material.color.setHex(0x38bdf8);
+                    }
+                }
+
+            } catch (err) {
+                console.error("Errore sync flussi live:", err);
+            }
+        }
+
+        // --- View Switcher ---
+        function setActiveView(view) {
+            const btn3d = document.getElementById('view-3d-btn');
+            const btnFlow = document.getElementById('view-flow-btn');
+            if (view === '3d') {
+                btn3d.className = "px-3 py-1 rounded-lg bg-amber-500 text-slate-950 font-semibold transition";
+                btnFlow.className = "px-3 py-1 rounded-lg text-slate-400 hover:text-white transition";
+                triggerNotification("Visualizzazione 3D isometrica attiva", "info");
+            } else {
+                btnFlow.className = "px-3 py-1 rounded-lg bg-sky-500 text-slate-950 font-semibold transition";
+                btn3d.className = "px-3 py-1 rounded-lg text-slate-400 hover:text-white transition";
+                triggerNotification("Schema sinottico flussi attivo", "info");
+            }
+        }
+
+        // --- Wallbox Controls ---
+        function updateChargingPower(val) {
+            const kw = (val * 230 / 1000).toFixed(1);
+            document.getElementById('current-power-val').innerText = `${val} A (${kw} kW)`;
+            document.getElementById('wb-badge').innerText = `${kw} kW`;
+            triggerNotification(`Potenza wallbox impostata a ${val}A (${kw} kW)`, 'success');
+        }
+
+        function setChargingMode(mode) {
+            ['solar', 'smart', 'eco'].forEach(m => {
+                const el = document.getElementById(`mode-${m}`);
+                if (m === mode) {
+                    el.className = "py-2 px-3 rounded-xl border border-purple-500 bg-purple-500/10 text-purple-300 text-xs font-semibold transition flex flex-col items-center justify-center gap-1";
+                } else {
+                    el.className = "py-2 px-3 rounded-xl border border-slate-800 bg-slate-800/50 hover:bg-slate-800 text-slate-400 text-xs font-medium transition flex flex-col items-center justify-center gap-1";
+                }
+            });
+            const modeNames = { solar: 'Solo Solare', smart: 'Smart Boost', eco: 'Eco Schedule' };
+            triggerNotification(`Modalità di ricarica impostata su: ${modeNames[mode]}`, 'success');
+        }
+
+        function toggleWallbox(checkbox) {
+            const statusText = document.getElementById('wb-status-text');
+            if (checkbox.checked) {
+                statusText.innerText = "Connesso & In Carica";
+                statusText.className = "text-emerald-400 font-medium";
+                triggerNotification("Wallbox attivata con successo", "success");
+            } else {
+                statusText.innerText = "In Pausa / Standby";
+                statusText.className = "text-amber-400 font-medium";
+                triggerNotification("Wallbox messa in pausa", "info");
+            }
+        }
+
+        // --- Chart.js Initialization ---
+        let energyChartInstance = null;
+
+        function initChart(tab = 'day') {
+            const ctx = document.getElementById('energyChart').getContext('2d');
+            
+            let labels, pvData, homeData, gridData;
+
+            if (tab === 'day') {
+                labels = ['06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00'];
+                pvData = [0.1, 1.2, 3.8, 5.6, 5.2, 3.4, 1.1, 0.0];
+                homeData = [1.2, 1.8, 1.5, 1.4, 1.6, 2.2, 2.8, 1.9];
+                gridData = [-1.1, 0.6, 2.3, 4.2, 3.6, 1.2, -1.7, -1.9];
+            } else {
+                labels = ['Sett 1', 'Sett 2', 'Sett 3', 'Sett 4'];
+                pvData = [120, 145, 160, 135];
+                homeData = [85, 90, 88, 92];
+                gridData = [35, 55, 72, 43];
+            }
+
+            if (energyChartInstance) {
+                energyChartInstance.destroy();
+            }
+
+            energyChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Produzione Solare (kW)',
+                            data: pvData,
+                            borderColor: '#fbbf24',
+                            backgroundColor: 'rgba(251, 191, 36, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Consumi Casa (kW)',
+                            data: homeData,
+                            borderColor: '#fb923c',
+                            backgroundColor: 'rgba(251, 146, 60, 0.05)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Scambio Rete (kW)',
+                            data: gridData,
+                            borderColor: '#38bdf8',
+                            backgroundColor: 'rgba(56, 189, 248, 0.05)',
+                            borderWidth: 2,
+                            borderDash: [4, 4],
+                            fill: false,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#94a3b8',
+                                font: { family: 'Inter', size: 11 },
+                                boxWidth: 12
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(30, 41, 59, 0.5)' },
+                            ticks: { color: '#94a3b8', font: { family: 'Inter', size: 10 } }
+                        },
+                        y: {
+                            grid: { color: 'rgba(30, 41, 59, 0.5)' },
+                            ticks: { color: '#94a3b8', font: { family: 'Inter', size: 10 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function switchChartTab(tab) {
+            const btnDay = document.getElementById('chart-day-btn');
+            const btnMonth = document.getElementById('chart-month-btn');
+            if (tab === 'day') {
+                btnDay.className = "px-2.5 py-1 rounded-lg bg-slate-800 text-white font-medium";
+                btnMonth.className = "px-2.5 py-1 rounded-lg text-slate-400 hover:text-white";
+            } else {
+                btnMonth.className = "px-2.5 py-1 rounded-lg bg-slate-800 text-white font-medium";
+                btnDay.className = "px-2.5 py-1 rounded-lg text-slate-400 hover:text-white";
+            }
+            initChart(tab);
+        }
+
+        // Initialize chart on load
+        window.addEventListener('DOMContentLoaded', () => {
+            initChart('day');
+            initThreeJS();
+            fetchLiveData();
+            setInterval(fetchLiveData, 12000);
+        });
+
+        // --- Three.js True 3D House Scene ---
+        let scene, camera, renderer, houseGroup, particlesMesh;
+        let solarPanelMesh, solarPanelMesh2, batteryMesh, inverterMesh;
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let targetRotation = { x: 0.2, y: 0.6 };
+
+        function initThreeJS() {
+            const container = document.getElementById('canvas-3d-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x0b0f19, 0.035);
+
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+            camera.position.set(12, 9, 14);
+            camera.lookAt(0, 1.5, 0);
+
+            // Renderer setup
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            const sunLight = new THREE.DirectionalLight(0xfffbeb, 1.5);
+            sunLight.position.set(15, 25, 15);
+            sunLight.castShadow = true;
+            scene.add(sunLight);
+
+            const blueFillLight = new THREE.DirectionalLight(0x38bdf8, 0.6);
+            blueFillLight.position.set(-15, 10, -15);
+            scene.add(blueFillLight);
+
+            // --- Load Realistic 3D Model Exported from Blender (.GLB) ---
+            houseGroup = new THREE.Group();
+            scene.add(houseGroup);
+
+            const gltfLoader = new THREE.GLTFLoader();
+            gltfLoader.load('/static/models/villa_solare.glb', (gltf) => {
+                const model = gltf.scene;
+                model.scale.set(0.36, 0.36, 0.36);
+                model.position.set(0, -1.0, 0);
+
+                model.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                        const n = child.name || '';
+                        if (n.includes('Pannello_Solare') || n.includes('Cornice_PV')) {
+                            child.userData = { type: 'solar' };
+                            solarPanelMesh = child;
+                        } else if (n.includes('Batteria')) {
+                            child.userData = { type: 'battery' };
+                            batteryMesh = child;
+                        } else if (n.includes('Inverter')) {
+                            child.userData = { type: 'solar' };
+                            inverterMesh = child;
+                        } else if (n.includes('Enel') || n.includes('Palo')) {
+                            child.userData = { type: 'grid' };
+                        } else if (n.includes('Auto_') || n.includes('Wallbox') || n.includes('Carport')) {
+                            child.userData = { type: 'ev' };
+                        } else if (n.includes('Villa') || n.includes('Vetrata')) {
+                            child.userData = { type: 'home' };
+                        }
+                    }
+                });
+
+                houseGroup.add(model);
+            });
+
+            houseGroup.rotation.x = targetRotation.x;
+            houseGroup.rotation.y = targetRotation.y;
+
+            // --- Floating Energy Particles Animation ---
+            const particleCount = 60;
+            const particleGeo = new THREE.BufferGeometry();
+            const particlePositions = new Float32Array(particleCount * 3);
+
+            for (let i = 0; i < particleCount * 3; i += 3) {
+                particlePositions[i] = (Math.random() - 0.5) * 10;
+                particlePositions[i + 1] = Math.random() * 5;
+                particlePositions[i + 2] = (Math.random() - 0.5) * 10;
+            }
+            particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+            const particleMat = new THREE.PointsMaterial({ color: 0xfbbf24, size: 0.12, transparent: true, opacity: 0.7 });
+            particlesMesh = new THREE.Points(particleGeo, particleMat);
+            scene.add(particlesMesh);
+
+            // Remove loading indicator
+            const loaderEl = document.getElementById('canvas-loader');
+            if (loaderEl) {
+                loaderEl.style.opacity = '0';
+                setTimeout(() => loaderEl.remove(), 500);
+            }
+
+            // --- Mouse & Touch Interaction Events ---
+            const domElement = renderer.domElement;
+
+            domElement.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const deltaX = e.clientX - previousMousePosition.x;
+                const deltaY = e.clientY - previousMousePosition.y;
+
+                targetRotation.y += deltaX * 0.008;
+                targetRotation.x += deltaY * 0.008;
+                targetRotation.x = Math.max(-0.2, Math.min(Math.PI / 2, targetRotation.x));
+
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+
+            window.addEventListener('mouseup', () => { isDragging = false; });
+
+            // Touch support for mobile
+            domElement.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    isDragging = true;
+                    previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                }
+            });
+
+            domElement.addEventListener('touchmove', (e) => {
+                if (!isDragging || e.touches.length !== 1) return;
+                const deltaX = e.touches[0].clientX - previousMousePosition.x;
+                const deltaY = e.touches[0].clientY - previousMousePosition.y;
+
+                targetRotation.y += deltaX * 0.008;
+                targetRotation.x += deltaY * 0.008;
+                targetRotation.x = Math.max(-0.2, Math.min(Math.PI / 2, targetRotation.x));
+
+                previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            });
+
+            domElement.addEventListener('touchend', () => { isDragging = false; });
+
+            // Raycasting for clicking 3D objects
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+
+            domElement.addEventListener('click', (e) => {
+                const rect = domElement.getBoundingClientRect();
+                mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+                mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(houseGroup.children);
+
+                if (intersects.length > 0) {
+                    const hitObject = intersects[0].object;
+                    if (hitObject.userData && hitObject.userData.type) {
+                        selectComponent(hitObject.userData.type);
+                    }
+                }
+            });
+
+            // Window resize handler
+            window.addEventListener('resize', onWindowResize);
+
+            // Start animation loop
+            animate3D();
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('canvas-3d-container');
+            if (!container || !renderer || !camera) return;
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        }
+
+        function resetCameraView() {
+            targetRotation.x = 0.2;
+            targetRotation.y = 0.6;
+            triggerNotification("Vista 3D ripristinata", "info");
+        }
+
+        function animate3D() {
+            requestAnimationFrame(animate3D);
+
+            // Smooth rotation interpolation
+            if (houseGroup) {
+                houseGroup.rotation.y += (targetRotation.y - houseGroup.rotation.y) * 0.1;
+                houseGroup.rotation.x += (targetRotation.x - houseGroup.rotation.x) * 0.1;
+            }
+
+            // Animate energy particles floating downwards / upwards
+            if (particlesMesh) {
+                const positions = particlesMesh.geometry.attributes.position.array;
+                for (let i = 1; i < positions.length; i += 3) {
+                    positions[i] -= 0.03;
+                    if (positions[i] < 0) positions[i] = 5;
+                }
+                particlesMesh.geometry.attributes.position.needsUpdate = true;
+            }
+
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
+        }
+    </script>
+</body>
+</html>
