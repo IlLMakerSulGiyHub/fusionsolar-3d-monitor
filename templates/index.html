@@ -23,6 +23,8 @@
             overflow: hidden;
             width: 100vw;
             height: 100vh;
+            height: 100dvh;
+            touch-action: none;
         }
 
         #webgl-canvas {
@@ -55,6 +57,7 @@
             justify-content: space-between;
             align-items: flex-start;
             pointer-events: auto;
+            gap: 12px;
         }
 
         .plant-brand {
@@ -79,6 +82,7 @@
         .plant-title .glow-dot {
             width: 10px;
             height: 10px;
+            flex-shrink: 0;
             border-radius: 50%;
             background: #00e699;
             box-shadow: 0 0 14px #00e699;
@@ -95,7 +99,8 @@
             color: #8b949e;
             margin-top: 5px;
             display: flex;
-            gap: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
         .plant-sub span {
@@ -103,11 +108,40 @@
             font-weight: 500;
         }
 
-        /* Stat Chips */
+        /* Stat Chips & Top Actions */
         .stat-chips {
             display: flex;
             gap: 12px;
             align-items: center;
+        }
+
+        .action-btn-hub, .action-btn-logout {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-decoration: none;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 14px;
+            padding: 12px 18px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            white-space: nowrap;
+        }
+
+        .action-btn-hub {
+            background: rgba(10, 14, 22, 0.85);
+            border: 1px solid rgba(0, 230, 153, 0.4);
+            color: #00e699;
+        }
+
+        .action-btn-logout {
+            background: rgba(20, 10, 16, 0.85);
+            border: 1px solid rgba(255, 85, 115, 0.45);
+            color: #ff6b81;
         }
 
         .stat-card {
@@ -119,6 +153,7 @@
             padding: 12px 20px;
             text-align: right;
             box-shadow: 0 14px 35px rgba(0, 0, 0, 0.45);
+            white-space: nowrap;
         }
 
         .stat-card .label {
@@ -143,11 +178,13 @@
             justify-content: space-between;
             align-items: flex-end;
             pointer-events: auto;
+            gap: 10px;
         }
 
         .controls-group {
             display: flex;
             gap: 10px;
+            max-width: 100%;
         }
 
         .cam-controls, .lighting-controls {
@@ -175,6 +212,8 @@
             display: flex;
             align-items: center;
             gap: 6px;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .cam-btn:hover {
@@ -198,6 +237,7 @@
             font-size: 12px;
             color: #8b949e;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            white-space: nowrap;
         }
 
         .sync-badge strong {
@@ -252,7 +292,7 @@
             box-shadow: 0 16px 40px rgba(0, 230, 153, 0.22);
         }
 
-        /* Posizioni ordinate ai lati della casa (zero sovrapposizioni, casa 3D sempre libera) */
+        /* Posizioni Desktop ordinate ai lati della casa */
         #tag-pv      { left: 10.5%; top: 14.5%; }
         #tag-house   { left: 3.2%;  top: 42.5%; }
 
@@ -261,23 +301,10 @@
         #tag-inv     { right: 3.2%; top: 51.5%; }
         #tag-wallbox { right: 3.2%; top: 69.0%; }
 
-        @media (max-width: 900px) {
-            .node-tag {
-                min-width: 160px;
-                padding: 7px 11px;
-                gap: 8px;
-            }
-            #tag-pv      { left: 3%; top: 14%; }
-            #tag-house   { left: 3%; top: 28%; }
-            #tag-grid    { right: 3%; top: 14%; }
-            #tag-bat     { right: 3%; top: 28%; }
-            #tag-inv     { right: 3%; top: 42%; }
-            #tag-wallbox { right: 3%; top: 56%; }
-        }
-
         .node-tag .icon-wrap {
             width: 36px;
             height: 36px;
+            flex-shrink: 0;
             border-radius: 11px;
             display: flex;
             align-items: center;
@@ -289,6 +316,7 @@
         .node-tag .info {
             display: flex;
             flex-direction: column;
+            min-width: 0;
         }
 
         .node-tag .info .label {
@@ -297,6 +325,8 @@
             letter-spacing: 0.6px;
             color: #8b949e;
             font-weight: 600;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .node-tag .info .val {
@@ -310,6 +340,8 @@
         .node-tag .info .sub {
             font-size: 11px;
             font-weight: 600;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .node-tag.tag-pv { border-color: rgba(255, 215, 0, 0.55); }
@@ -351,6 +383,161 @@
             gap: 14px;
             pointer-events: none;
         }
+
+        /* ═══════════════════════════════════════════════════════════════════
+           OTTIMIZZAZIONE COMPLETA PER SMARTPHONE (PORTRAIT & LANDSCAPE)
+           ═══════════════════════════════════════════════════════════════════ */
+        @media (max-width: 900px) {
+            .hud-overlay {
+                padding: 10px 10px 12px 10px;
+            }
+
+            .top-bar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 6px;
+                width: 100%;
+            }
+
+            .plant-brand {
+                padding: 9px 14px;
+                border-radius: 13px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .plant-title {
+                font-size: 14px;
+                gap: 8px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .plant-sub {
+                display: none;
+            }
+
+            .stat-chips {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 5px;
+                width: 100%;
+            }
+
+            .action-btn-hub, .action-btn-logout {
+                padding: 8px 6px;
+                border-radius: 11px;
+                font-size: 11px;
+                gap: 4px;
+            }
+
+            .action-btn-hub .desktop-txt, .action-btn-logout .desktop-txt {
+                display: none;
+            }
+
+            .stat-card {
+                padding: 6px 8px;
+                border-radius: 11px;
+                text-align: center;
+            }
+
+            .stat-card .label {
+                font-size: 8.5px;
+                letter-spacing: 0.3px;
+            }
+
+            .stat-card .val {
+                font-size: 13px;
+                margin-top: 1px;
+            }
+
+            /* Nascondi le linee SVG su schermo verticale piccolo e disponi le 6 schede in una griglia 3x2 ordinata in basso! */
+            #callout-svg {
+                display: none;
+            }
+
+            #labels-container {
+                top: auto;
+                bottom: 66px;
+                left: 10px;
+                right: 10px;
+                width: calc(100% - 20px);
+                height: auto;
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 6px;
+                overflow: visible;
+            }
+
+            .node-tag {
+                position: relative !important;
+                left: auto !important;
+                right: auto !important;
+                top: auto !important;
+                bottom: auto !important;
+                min-width: 0;
+                width: 100%;
+                padding: 7px 8px;
+                border-radius: 12px;
+                gap: 7px;
+            }
+
+            .node-tag .icon-wrap {
+                width: 26px;
+                height: 26px;
+                border-radius: 8px;
+                font-size: 14px;
+            }
+
+            .node-tag .info .label {
+                font-size: 8.5px;
+                letter-spacing: 0.2px;
+            }
+
+            .node-tag .info .val {
+                font-size: 13px;
+            }
+
+            .node-tag .info .sub {
+                font-size: 8.5px;
+            }
+
+            .controls-hint, .sync-badge {
+                display: none;
+            }
+
+            .bottom-bar {
+                width: 100%;
+            }
+
+            .controls-group {
+                width: 100%;
+                overflow-x: auto;
+                scrollbar-width: none;
+                -ms-overflow-style: none;
+                gap: 6px;
+                padding-bottom: 2px;
+            }
+
+            .controls-group::-webkit-scrollbar {
+                display: none;
+            }
+
+            .cam-controls, .lighting-controls {
+                padding: 4px;
+                border-radius: 12px;
+                gap: 4px;
+                flex-shrink: 0;
+            }
+
+            .cam-btn {
+                padding: 7px 10px;
+                font-size: 11.5px;
+                border-radius: 9px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -376,7 +563,7 @@
         <div id="tag-pv" class="node-tag tag-pv" data-side="left" data-color="#ffd700" onclick="focusObject(coords.pv)">
             <div class="icon-wrap">☀️</div>
             <div class="info">
-                <span class="label">Pannelli Solari</span>
+                <span class="label">Solare PV</span>
                 <span class="val" id="val-pv">0.00 kW</span>
                 <span class="sub" id="sub-pv" style="color: #ffd700;">In produzione</span>
             </div>
@@ -387,23 +574,14 @@
             <div class="info">
                 <span class="label">Carico Casa</span>
                 <span class="val" id="val-house">0.00 kW</span>
-                <span class="sub" style="color: #ff9933;">Consumo interno</span>
-            </div>
-        </div>
-
-        <div id="tag-grid" class="node-tag tag-grid" data-side="right" data-color="#a389ff" onclick="focusObject(coords.grid)">
-            <div class="icon-wrap">🔌</div>
-            <div class="info">
-                <span class="label">Rete Elettrica Enel</span>
-                <span class="val" id="val-grid">0.00 kW</span>
-                <span class="sub" id="sub-grid" style="color: #8b949e;">Inattiva</span>
+                <span class="sub" style="color: #ff9933;">Consumo</span>
             </div>
         </div>
 
         <div id="tag-bat" class="node-tag tag-battery" data-side="right" data-color="#00d2ff" onclick="focusObject(coords.battery)">
             <div class="icon-wrap">🔋</div>
             <div class="info">
-                <span class="label">Batteria LUNA2000</span>
+                <span class="label">Batteria</span>
                 <span class="val" id="val-bat">0.00 kW</span>
                 <span class="sub" id="sub-bat" style="color: #00d2ff;">100% SOC</span>
             </div>
@@ -412,18 +590,27 @@
         <div id="tag-inv" class="node-tag tag-inverter" data-side="right" data-color="#00e699" onclick="focusObject(coords.inverter)">
             <div class="icon-wrap">⚡</div>
             <div class="info">
-                <span class="label">Inverter SUN2000</span>
+                <span class="label">Inverter</span>
                 <span class="val" id="val-inv">Online</span>
-                <span class="sub" style="color: #00e699;">In funzione</span>
+                <span class="sub" style="color: #00e699;">SUN2000</span>
+            </div>
+        </div>
+
+        <div id="tag-grid" class="node-tag tag-grid" data-side="right" data-color="#a389ff" onclick="focusObject(coords.grid)">
+            <div class="icon-wrap">🔌</div>
+            <div class="info">
+                <span class="label">Rete Enel</span>
+                <span class="val" id="val-grid">0.00 kW</span>
+                <span class="sub" id="sub-grid" style="color: #8b949e;">Inattiva</span>
             </div>
         </div>
 
         <div id="tag-wallbox" class="node-tag tag-wallbox" data-side="right" data-color="#e65aff" onclick="focusObject(coords.wallbox)">
             <div class="icon-wrap">🚗</div>
             <div class="info">
-                <span class="label">Wallbox Ricarica Auto</span>
+                <span class="label">Wallbox</span>
                 <span class="val" id="val-wb">0.00 kW</span>
-                <span class="sub" id="sub-wb" style="color: #e65aff;">Standby / Pronta</span>
+                <span class="sub" id="sub-wb" style="color: #e65aff;">Standby</span>
             </div>
         </div>
     </div>
@@ -446,18 +633,18 @@
             </div>
 
             <div class="stat-chips">
-                <a href="/hub" style="display:flex; align-items:center; gap:8px; text-decoration:none; background:rgba(10,14,22,0.85); backdrop-filter:blur(16px); border:1px solid rgba(0,230,153,0.4); border-radius:14px; padding:12px 18px; color:#00e699; font-size:13px; font-weight:700; cursor:pointer; box-shadow:0 10px 30px rgba(0,0,0,0.4);">
-                    <span>📊 Dashboard Completa Hub</span>
+                <a href="/hub" class="action-btn-hub">
+                    <span>📊 Hub<span class="desktop-txt"> Completo</span></span>
                 </a>
-                <a href="/logout" title="Esci e accedi con un altro account" style="display:flex; align-items:center; gap:8px; text-decoration:none; background:rgba(20,10,16,0.85); backdrop-filter:blur(16px); border:1px solid rgba(255,85,115,0.45); border-radius:14px; padding:12px 16px; color:#ff6b81; font-size:13px; font-weight:700; cursor:pointer; box-shadow:0 10px 30px rgba(0,0,0,0.4);">
-                    <span>🚪 Cambia Account</span>
+                <a href="/logout" title="Esci e accedi con un altro account" class="action-btn-logout">
+                    <span>🚪 Esci<span class="desktop-txt"> / Account</span></span>
                 </a>
                 <div class="stat-card">
-                    <div class="label">Produzione Oggi</div>
+                    <div class="label">Oggi</div>
                     <div class="val" id="kpi-daily">-- kWh</div>
                 </div>
                 <div class="stat-card">
-                    <div class="label">Produzione Mese</div>
+                    <div class="label">Mese</div>
                     <div class="val" id="kpi-month" style="color: #58a6ff;">-- kWh</div>
                 </div>
             </div>
@@ -504,8 +691,15 @@
         scene.background = new THREE.Color(0x090e17);
         scene.fog = new THREE.FogExp2(0x090e17, 0.011);
 
+        const isMobileScreen = () => window.innerWidth <= 900;
+        const getMobileDistFactor = () => {
+            const aspect = window.innerWidth / window.innerHeight;
+            return aspect < 0.85 ? Math.min(1.65, 0.95 / Math.max(aspect, 0.42)) : 1.0;
+        };
+
         const camera = new THREE.PerspectiveCamera(36, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(21, 15.5, 21);
+        const initFactor = getMobileDistFactor();
+        camera.position.set(21 * initFactor, 15.5 * initFactor, 21 * initFactor);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -521,8 +715,8 @@
         controls.dampingFactor = 0.05;
         controls.maxPolarAngle = Math.PI / 2 - 0.04;
         controls.minDistance = 8;
-        controls.maxDistance = 80;
-        controls.target.set(0.5, 3.8, 0.5);
+        controls.maxDistance = 95;
+        controls.target.set(0.5, isMobileScreen() ? 2.2 : 3.8, 0.5);
 
         /* ═══════════════════════════════════════════════════════════════════
            2. LIGHTING
@@ -754,7 +948,7 @@
         }
 
         function updateProjectedLabels() {
-            if (!labelsVisible) return;
+            if (!labelsVisible || isMobileScreen()) return;
             const w = window.innerWidth;
             const h = window.innerHeight;
             const tempV = new THREE.Vector3();
@@ -926,25 +1120,31 @@
             controls.autoRotate = false;
             document.getElementById('btn-autorotate').classList.remove('active');
 
+            const f = getMobileDistFactor();
+            const mobYOffset = isMobileScreen() ? -1.4 : 0;
+
             switch (viewName) {
                 case 'iso':
-                    smoothCameraGlide(new THREE.Vector3(21, 15.5, 21), new THREE.Vector3(0.5, 3.8, 0.5));
+                    smoothCameraGlide(new THREE.Vector3(21 * f, 15.5 * f, 21 * f), new THREE.Vector3(0.5, 3.8 + mobYOffset, 0.5));
                     break;
                 case 'roof':
-                    smoothCameraGlide(new THREE.Vector3(10, 18.5, 13), new THREE.Vector3(0.5, 8.2, 1.0));
+                    smoothCameraGlide(new THREE.Vector3(10 * f, 18.5 * f, 13 * f), new THREE.Vector3(0.5, 8.2 + mobYOffset * 0.6, 1.0));
                     break;
                 case 'battery':
-                    smoothCameraGlide(new THREE.Vector3(15.5, 3.8, 6.2), new THREE.Vector3(7.6, 1.8, 2.5));
+                    smoothCameraGlide(new THREE.Vector3(15.5 * f, 3.8 * f, 6.2 * f), new THREE.Vector3(7.6, 1.8 + mobYOffset * 0.4, 2.5));
                     break;
                 case 'car':
-                    smoothCameraGlide(new THREE.Vector3(16.5, 4.2, 1.5), new THREE.Vector3(7.6, 1.5, -1.0));
+                    smoothCameraGlide(new THREE.Vector3(16.5 * f, 4.2 * f, 1.5 * f), new THREE.Vector3(7.6, 1.5 + mobYOffset * 0.4, -1.0));
                     break;
             }
         }
 
         function focusObject(coord) {
-            const offset = new THREE.Vector3(7, 4.5, 7);
-            smoothCameraGlide(coord.clone().add(offset), coord.clone());
+            const f = getMobileDistFactor();
+            const offset = new THREE.Vector3(7 * f, 4.5 * f, 7 * f);
+            const target = coord.clone();
+            if (isMobileScreen()) target.y -= 0.8;
+            smoothCameraGlide(coord.clone().add(offset), target);
         }
 
         function toggleAutoRotate(btn) {
