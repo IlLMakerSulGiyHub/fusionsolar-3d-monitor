@@ -2,16 +2,18 @@ import os
 import time
 import re
 import json
+import base64
+from urllib.parse import urlparse
 from datetime import timedelta
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import requests
 from flask import Flask, jsonify, render_template, request, redirect, url_for, session
 from dotenv import load_dotenv
 from fusion_solar_py.client import FusionSolarClient
+from fusion_solar_py.encryption import encrypt_password, get_secure_random
 
 load_dotenv()
 
 app = Flask(__name__)
-# Chiave fissa per firmare i cookie di sessione (necessaria su Vercel Serverless e per multi-dispositivo)
 app.secret_key = os.getenv('SECRET_KEY', 'ecosmart-fusionsolar-3d-secret-key-2026-v1')
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=365)
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
@@ -19,30 +21,19 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 IS_VERCEL = bool(os.getenv('VERCEL'))
 SAVED_ACCOUNT_FILE = os.path.join(os.path.dirname(__file__), 'saved_account.json')
 
-# Cache in memoria indicizzata per username (così più parenti collegati insieme non si sovrascrivono mai)
+# Cache in memoria per utente
 clients_cache = {}
 data_cache = {}
 CACHE_SECONDS = 15
 
-HUAWEI_SUBDOMAINS = [
-    'uni002eu5',
-    'uni001eu5',
-    'uni003eu5',
-    'uni004eu5',
-    'uni005eu5',
-    'region01eu5',
-    'region02eu5',
-    'region03eu5',
-    'region04eu5',
-    'region05eu5'
-]
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
 
 def get_current_credentials():
     """
     Restituisce le credenziali per il dispositivo/browser corrente:
-    1. Prima controlla il cookie cifrato di sessione del singolo telefono/PC (funziona su Vercel e in multi-utente).
-    2. Se siamo in locale sul PC (non su Vercel) e non è stato fatto logout, usa saved_account.json o .env.
+    1. Dal cookie di sessione del singolo telefono/PC (funziona su Vercel e in multi-utente).
+    2. In locale su PC (se non su Vercel), usa saved_account.json o .env.
     """
     if session.get('logged_out'):
         return None
@@ -51,10 +42,10 @@ def get_current_credentials():
         return {
             "username": session['fs_user'],
             "password": session['fs_pass'],
-            "subdomain": session.get('fs_sub', 'uni002eu5')
+            "subdomain": session.get('fs_sub', 'uni002eu5'),
+            "hw_cookies": session.get('hw_cookies')
         }
 
-    # Fallback locale (solo su PC locale, non su Vercel pubblico)
     if not IS_VERCEL:
         if os.path.exists(SAVED_ACCOUNT_FILE):
             try:
@@ -66,7 +57,8 @@ def get_current_credentials():
                         return {
                             "username": data['username'],
                             "password": data['password'],
-                            "subdomain": data.get('subdomain', 'uni002eu5')
+                            "subdomain": data.get('subdomain', 'uni002eu5'),
+                            "hw_cookies": data.get('hw_cookies')
                         }
             except Exception as e:
                 print(f"Errore lettura saved_account.json: {e}")
@@ -78,7 +70,8 @@ def get_current_credentials():
             return {
                 "username": env_user,
                 "password": env_pass,
-                "subdomain": env_sub
+                "subdomain": env_sub,
+                "hw_cookies": None
             }
 
     return None
@@ -88,20 +81,151 @@ def is_authenticated():
     return get_current_credentials() is not None
 
 
+def fetch_captcha_image(req_session, login_subdomain="eu5"):
+    """Scarica l'immagine Captcha da Huawei e la converte in Base64."""
+    url = f"https://{login_subdomain}.fusionsolar.huawei.com/unisso/verifycode"
+    r = req_session.get(url, params={"timestamp": round(time.time() * 1000)}, timeout=10)
+    r.raise_for_status()
+    b64 = base64.b64encode(r.content).decode('utf-8')
+    return f"data:image/png;base64,{b64}"
+
+
+def smart_huawei_login(username, password, req_subdomain="auto", verifycode=None, captcha_cookies=None):
+    """
+    Esegue UN SOLO tentativo di login su Huawei (evitando blocchi per troppi tentativi)
+    e rileva automaticamente il sottodominio regionale dall'URL di redirect di Huawei.
+    Supporta anche il codice Captcha se richiesto dal firewall Huawei su IP Cloud (es. Vercel).
+    """
+    login_subdomain = "eu5"
+    s = requests.Session()
+    s.headers["User-Agent"] = USER_AGENT
+
+    if captcha_cookies and isinstance(captcha_cookies, dict):
+        s.cookies.update(captcha_cookies)
+
+    # 1. Ottieni chiave pubblica RSA da Huawei
+    key_req = s.get(f"https://{login_subdomain}.fusionsolar.huawei.com/unisso/pubkey", timeout=10)
+    key_req.raise_for_status()
+    key_data = key_req.json()
+
+    # 2. Se l'utente ha inserito il Captcha, pre-valida il codice
+    if verifycode:
+        verifycode = verifycode.strip()
+        try:
+            s.post(
+                f"https://{login_subdomain}.fusionsolar.huawei.com/unisso/preValidVerifycode",
+                data={"verifycode": verifycode, "index": 0},
+                timeout=10
+            )
+        except Exception:
+            pass
+
+    # 3. Prepara la richiesta di login cifrata V3
+    url = f"https://{login_subdomain}.fusionsolar.huawei.com/unisso/v3/validateUser.action"
+    url_params = {
+        "timeStamp": key_data["timeStamp"],
+        "nonce": get_secure_random()
+    }
+    enc_password = encrypt_password(key_data=key_data, password=password)
+
+    json_data = {
+        "organizationName": "",
+        "username": username,
+        "password": enc_password
+    }
+    if verifycode:
+        json_data["verifycode"] = verifycode
+
+    r = s.post(url=url, params=url_params, json=json_data, timeout=12)
+    r.raise_for_status()
+    login_resp = r.json()
+
+    error_code = str(login_resp.get("errorCode") or "")
+    error_msg = login_resp.get("errorMsg") or ""
+
+    # 4. Login riuscito (codice 470 = redirect multi-region)
+    if error_code == "470" and login_resp.get("respMultiRegionName"):
+        target_path = login_resp["respMultiRegionName"][1]
+        target_url = f"https://{login_subdomain}.fusionsolar.huawei.com{target_path}"
+        redir_resp = s.get(target_url, timeout=12)
+        redir_resp.raise_for_status()
+
+        # Estrai automaticamente il vero sottodominio (es. uni002eu5, uni003eu5, region01eu5) dall'URL finale!
+        parsed_host = urlparse(redir_resp.url).hostname or ""
+        detected_sub = parsed_host.split(".")[0] if ".fusionsolar.huawei.com" in parsed_host else None
+
+        final_sub = detected_sub if (req_subdomain == "auto" and detected_sub) else (
+            req_subdomain if req_subdomain != "auto" else (detected_sub or "uni002eu5")
+        )
+
+        # Crea il FusionSolarClient riusando i cookie già autenticati (senza rifare il login!)
+        hw_cookies = s.cookies.get_dict()
+        fs_client = FusionSolarClient(
+            username,
+            password,
+            huawei_subdomain=final_sub,
+            cookies=hw_cookies
+        )
+        # Recupera il company_id / lista impianti
+        stations = fs_client.get_station_list()
+        return {
+            "success": True,
+            "client": fs_client,
+            "subdomain": final_sub,
+            "stations": stations,
+            "hw_cookies": fs_client.get_cookies()
+        }
+
+    # 5. Gestione richiesta Captcha da parte di Huawei (molto comune da IP Cloud come Vercel)
+    if "verification code" in error_msg.lower() or login_resp.get("verifyCodeCreate"):
+        captcha_b64 = fetch_captcha_image(s, login_subdomain)
+        return {
+            "need_captcha": True,
+            "captcha_image": captcha_b64,
+            "captcha_cookies": s.cookies.get_dict(),
+            "error": "Per sicurezza Huawei richiede il codice visivo (Captcha). Inserisci i caratteri mostrati nell'immagine qui sotto."
+        }
+
+    # 6. Gestione account bloccato temporaneamente da Huawei
+    if "locked" in error_msg.lower() or error_code == "403":
+        return {
+            "error": "L'account Huawei è temporaneamente bloccato per 10 minuti a causa di troppi tentativi ravvicinati. Attendi 10 minuti (oppure entra una volta dall'app ufficiale FusionSolar) e riprova."
+        }
+
+    return {
+        "error": f"Accesso rifiutato da Huawei: {error_msg or 'Credenziali non valide'}"
+    }
+
+
 def get_client_for_creds(creds):
-    """Ottiene o crea il client FusionSolar per uno specifico account."""
+    """Ottiene o ricrea il client FusionSolar riusando i cookie di sessione Huawei."""
     key = f"{creds['username']}@{creds['subdomain']}"
-    if key not in clients_cache:
-        clients_cache[key] = FusionSolarClient(
+    if key in clients_cache:
+        return clients_cache[key]
+
+    hw_cookies = creds.get("hw_cookies")
+    if hw_cookies:
+        c = FusionSolarClient(
             creds["username"],
             creds["password"],
-            huawei_subdomain=creds["subdomain"]
+            huawei_subdomain=creds["subdomain"],
+            cookies=hw_cookies
         )
-    return clients_cache[key]
+        if c.is_session_active():
+            clients_cache[key] = c
+            return c
+
+    # Se i cookie sono scaduti o non presenti, esegui un singolo login pulito
+    res = smart_huawei_login(creds["username"], creds["password"], creds["subdomain"])
+    if res.get("success"):
+        clients_cache[key] = res["client"]
+        session['hw_cookies'] = res.get("hw_cookies")
+        return res["client"]
+
+    raise RuntimeError(res.get("error", "Sessione Huawei scaduta, effettua nuovamente il login."))
 
 
 def parse_kw(value_str):
-    """Estrae il numero float da stringhe tipo '0.245 kW'."""
     if not value_str:
         return 0.0
     try:
@@ -110,18 +234,24 @@ def parse_kw(value_str):
         return 0.0
 
 
-def _try_single_subdomain(username, password, sub):
-    """Funzione worker per testare un sottodominio Huawei."""
-    test_client = FusionSolarClient(username, password, huawei_subdomain=sub)
-    stations = test_client.get_station_list()
-    if stations is not None and len(stations) > 0:
-        return sub, test_client, stations
-    raise ValueError(f"Nessun impianto su {sub}")
-
-
 @app.route('/login')
 def login_page():
     return render_template('login.html')
+
+
+@app.route('/api/captcha', methods=['GET'])
+def api_refresh_captcha():
+    """Endpoint per ricaricare una nuova immagine Captcha se non si legge bene."""
+    try:
+        s = requests.Session()
+        s.headers["User-Agent"] = USER_AGENT
+        if session.get('captcha_cookies'):
+            s.cookies.update(session['captcha_cookies'])
+        img = fetch_captcha_image(s, "eu5")
+        session['captcha_cookies'] = s.cookies.get_dict()
+        return jsonify({"captcha_image": img})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/api/login', methods=['POST'])
@@ -130,48 +260,52 @@ def api_login():
     username = (body.get('username') or '').strip()
     password = body.get('password') or ''
     req_subdomain = body.get('subdomain') or 'auto'
+    verifycode = (body.get('verifycode') or '').strip()
     remember = bool(body.get('remember', True))
 
     if not username or not password:
         return jsonify({"error": "Inserisci sia username/email che password."}), 400
 
-    subdomains_to_try = [req_subdomain] if req_subdomain != 'auto' else HUAWEI_SUBDOMAINS
+    captcha_cookies = session.get('captcha_cookies')
 
-    found_sub = None
-    found_client = None
-    found_stations = None
-    last_error = None
+    try:
+        result = smart_huawei_login(
+            username=username,
+            password=password,
+            req_subdomain=req_subdomain,
+            verifycode=verifycode if verifycode else None,
+            captcha_cookies=captcha_cookies
+        )
+    except Exception as e:
+        return jsonify({"error": f"Errore di comunicazione con Huawei: {e}"}), 500
 
-    # Test parallelo veloce (perfetto per Vercel Serverless per non superare mai il timeout)
-    with ThreadPoolExecutor(max_workers=min(5, len(subdomains_to_try))) as executor:
-        future_to_sub = {
-            executor.submit(_try_single_subdomain, username, password, sub): sub
-            for sub in subdomains_to_try
-        }
-        for future in as_completed(future_to_sub):
-            try:
-                sub, test_client, stations = future.result()
-                found_sub = sub
-                found_client = test_client
-                found_stations = stations
-                break
-            except Exception as e:
-                last_error = str(e)
+    if result.get("need_captcha"):
+        session['captcha_cookies'] = result.get("captcha_cookies", {})
+        return jsonify({
+            "need_captcha": True,
+            "captcha_image": result["captcha_image"],
+            "error": result["error"]
+        }), 401
 
-    if found_sub and found_client and found_stations:
-        plant_name = found_stations[0].get('name', 'Impianto Fotovoltaico')
+    if result.get("success"):
+        found_sub = result["subdomain"]
+        found_client = result["client"]
+        found_stations = result["stations"] or []
+        hw_cookies = result.get("hw_cookies", {})
+
+        plant_name = found_stations[0].get('name', 'Impianto Fotovoltaico') if found_stations else 'Impianto Fotovoltaico'
         key = f"{username}@{found_sub}"
         clients_cache[key] = found_client
         data_cache.pop(key, None)
 
-        # Salva nel Cookie di Sessione del dispositivo corrente (telefono/PC)
         session.permanent = remember
         session['fs_user'] = username
         session['fs_pass'] = password
         session['fs_sub'] = found_sub
+        session['hw_cookies'] = hw_cookies
+        session.pop('captcha_cookies', None)
         session.pop('logged_out', None)
 
-        # Salva anche in locale se siamo su PC
         if not IS_VERCEL:
             try:
                 with open(SAVED_ACCOUNT_FILE, 'w', encoding='utf-8') as f:
@@ -179,7 +313,8 @@ def api_login():
                         json.dump({
                             "username": username,
                             "password": password,
-                            "subdomain": found_sub
+                            "subdomain": found_sub,
+                            "hw_cookies": hw_cookies
                         }, f, indent=2)
                     else:
                         json.dump({"logged_out": True}, f, indent=2)
@@ -194,7 +329,7 @@ def api_login():
         })
 
     return jsonify({
-        "error": f"Impossibile accedere a FusionSolar. Verifica email e password. ({last_error or 'Account non trovato'})"
+        "error": result.get("error", "Impossibile accedere a FusionSolar.")
     }), 401
 
 

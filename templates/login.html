@@ -114,12 +114,30 @@
                 </div>
             </div>
 
-            <!-- Ricordami su questo PC -->
+            <!-- Box Captcha Dinamico (compare solo se Huawei lo richiede da IP Cloud/Vercel) -->
+            <div id="captcha-container" class="hidden p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/40 space-y-2.5">
+                <div class="flex items-center justify-between">
+                    <label class="text-xs font-bold text-amber-300 uppercase tracking-wider">
+                        <i class="fa-solid fa-shield-cat mr-1"></i> Codice Sicurezza Huawei
+                    </label>
+                    <button type="button" onclick="refreshCaptcha()" class="text-[11px] text-amber-400 hover:text-white underline">
+                        <i class="fa-solid fa-rotate-right"></i> Cambia immagine
+                    </button>
+                </div>
+                <div class="flex items-center gap-3">
+                    <img id="captcha-img" src="" alt="Captcha Huawei" onclick="refreshCaptcha()" title="Clicca per cambiare immagine"
+                        class="h-11 rounded-lg border border-slate-600 bg-white px-2 cursor-pointer select-none">
+                    <input type="text" id="verifycode" placeholder="Inserisci codice..."
+                        class="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-900 border border-amber-500/50 text-white text-sm font-bold tracking-widest uppercase placeholder-slate-500 focus:outline-none focus:border-amber-400">
+                </div>
+            </div>
+
+            <!-- Ricordami su questo dispositivo -->
             <div class="flex items-center justify-between pt-1">
                 <label class="flex items-center gap-2.5 cursor-pointer text-xs text-slate-300 select-none">
                     <input type="checkbox" id="remember" checked
                         class="w-4 h-4 rounded accent-emerald-500 bg-slate-900 border-slate-700 cursor-pointer">
-                    <span>Ricorda il mio account su questo computer</span>
+                    <span>Ricorda il mio account su questo dispositivo (PC / Telefono)</span>
                 </label>
             </div>
 
@@ -134,7 +152,7 @@
         <div class="mt-6 pt-5 border-t border-slate-800/80 text-center">
             <p class="text-[11px] text-slate-500">
                 <i class="fa-solid fa-shield-halved text-emerald-400 mr-1"></i>
-                Le credenziali restano salvate esclusivamente sul tuo computer locale e vengono usate solo per interrogare il tuo inverter.
+                Ogni telefono o computer mantiene la propria sessione separata e sicura.
             </p>
         </div>
     </div>
@@ -149,6 +167,20 @@
             } else {
                 pwd.type = 'password';
                 icon.className = 'fa-regular fa-eye';
+            }
+        }
+
+        async function refreshCaptcha() {
+            try {
+                const res = await fetch('/api/captcha');
+                const data = await res.json();
+                if (data.captcha_image) {
+                    document.getElementById('captcha-img').src = data.captcha_image;
+                    document.getElementById('verifycode').value = '';
+                    document.getElementById('verifycode').focus();
+                }
+            } catch (e) {
+                console.error(e);
             }
         }
 
@@ -178,6 +210,7 @@
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
             const subdomain = document.getElementById('subdomain').value;
+            const verifycode = document.getElementById('verifycode').value.trim();
             const remember = document.getElementById('remember').checked;
 
             const btn = document.getElementById('submit-btn');
@@ -188,13 +221,13 @@
             btn.classList.add('opacity-75', 'cursor-wait');
             btnIcon.className = 'fa-solid fa-circle-notch fa-spin';
             btnText.textContent = 'Connessione a FusionSolar in corso...';
-            showAlert('Ricerca del tuo impianto sui server Huawei FusionSolar...', 'info');
+            showAlert('Autenticazione sul server Huawei FusionSolar in corso...', 'info');
 
             try {
                 const res = await fetch('/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password, subdomain, remember })
+                    body: JSON.stringify({ username, password, subdomain, verifycode, remember })
                 });
                 const data = await res.json();
 
@@ -206,6 +239,14 @@
                         window.location.href = '/';
                     }, 700);
                 } else {
+                    if (data.need_captcha && data.captcha_image) {
+                        const capBox = document.getElementById('captcha-container');
+                        const capImg = document.getElementById('captcha-img');
+                        capBox.classList.remove('hidden');
+                        capImg.src = data.captcha_image;
+                        document.getElementById('verifycode').value = '';
+                        document.getElementById('verifycode').focus();
+                    }
                     showAlert(data.error || 'Credenziali non valide o impianto non raggiungibile.', 'error');
                     btn.disabled = false;
                     btn.classList.remove('opacity-75', 'cursor-wait');
@@ -213,7 +254,7 @@
                     btnText.textContent = 'Entra nella Dashboard 3D';
                 }
             } catch (err) {
-                showAlert('Errore di rete durante la comunicazione col server locale.', 'error');
+                showAlert('Errore di rete durante la comunicazione col server.', 'error');
                 btn.disabled = false;
                 btn.classList.remove('opacity-75', 'cursor-wait');
                 btnIcon.className = 'fa-solid fa-right-to-bracket';
